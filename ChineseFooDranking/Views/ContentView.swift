@@ -56,7 +56,7 @@ struct ContentView: View {
             .ignoresSafeArea()
         )
         .fullScreenCover(isPresented: $addButtonClicked){
-            AddingRestaurandView()
+            AddRestaurantView()
         }
     }
 }

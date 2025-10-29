@@ -8,12 +8,18 @@
 import SwiftUI
 
 struct AddRestaurantView: View {
+    @EnvironmentObject var restaurantManager: RestaurantManager
     @Environment(\.dismiss) var dismiss
-    @State private var restaurantName: String = ""
+    @State private var name: String = ""
     @State private var address: String = ""
     @State private var cuisine: String = ""
-    @State var dishes: [String] = ["Kuciak w miodem", "krewetki"]
+    @State var favoriteDishes: [String] = ["Kuciak w miodem", "krewetki"]
     @State private var notes: String = ""
+    @State private var selectedImageData: Data?
+    @State private var foodScore: Double = 5.0
+    @State private var serviceScore: Double = 5.0
+    @State private var ambianceScore: Double = 5.0
+    @State private var valueScore: Double = 5.0
 
     
     let cuisineTypes = ["Chinese", "Vietnam", "Italian", "American", "Japanese"]
@@ -38,7 +44,7 @@ struct AddRestaurantView: View {
                 
                 InputRow(label: "Nazwa Restauracji *",
                          placeholder: "Kim Long",
-                         value: $restaurantName)
+                         value: $name)
 
                 InputRow(label: "Adres",
                          placeholder: "Pruszkowska 7",
@@ -48,12 +54,62 @@ struct AddRestaurantView: View {
                           placeholder: "Wybierz typ kuchni",
                           options: cuisineTypes,
                           selection: $cuisine)
-                PhotoPicker()
-                Ratings(isEditable: true)
-                FavoriteDishes(mode: .editing, dishes: $dishes)
+                PhotoPicker(selectedImageData: $selectedImageData)
+                Ratings(
+                                   isEditable: true,
+                                   foodScore: $foodScore,
+                                   serviceScore: $serviceScore,
+                                   ambianceScore: $ambianceScore,
+                                   valueScore: $valueScore
+                               )
+                FavoriteDishes(mode: .editing, dishes: $favoriteDishes)
                 InputRow(label: "Notatki",
                          placeholder: "Dodaj komentarz lub uwagę do restauracji...",
                          value: $notes)
+                .padding(.vertical)
+                HStack{
+                    Button{
+                        dismiss()
+                    }label: {
+                        Text("Anuluj")
+                            .foregroundColor(Color.black)
+                            .font(.headline)
+                    }
+                    .padding()
+                    .frame(width: 180)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray, lineWidth: 1)
+                    )
+                    Button{
+                        let newRestaurant = Restaurant(
+                            name: name,
+                            address: address,
+                            cuisine: cuisine,
+                            imageData: selectedImageData,
+                            foodScore: foodScore,
+                            serviceScore: serviceScore,
+                            ambianceScore: ambianceScore,
+                            valueScore: valueScore,
+                            favoriteDishes: favoriteDishes,
+                            notes: notes
+                        )
+                        restaurantManager.addRestaurant(newRestaurant)
+                        dismiss()
+                    }label: {
+                        Text("Dodaj Restaurację")
+                            .foregroundColor(Color.white)
+                            .font(.headline)
+    
+                    }
+                    .padding()
+                    .frame(width: 180)
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.red)
+                    )
+                    
+                }
             }
             .padding(.top, 8)
         }

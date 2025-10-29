@@ -12,9 +12,15 @@ struct Restaurant: Identifiable {
     var name: String
     var address: String
     var cuisine: String
-    var rating: Double
+    var imageData: Data?
     var foodScore: Double
     var serviceScore: Double
     var ambianceScore: Double
     var valueScore: Double
+    var favoriteDishes: [String]
+    var notes : String
+    
+    var rating: Double {
+            (foodScore + serviceScore + ambianceScore + valueScore) / 4.0
+        }
 }

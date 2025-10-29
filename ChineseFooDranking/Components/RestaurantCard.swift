@@ -9,6 +9,9 @@ import SwiftUI
 
 struct RestaurantCard: View {
     @State private var showDetails = false
+    let restaurant: Restaurant
+    var onSave: (Restaurant) -> Void
+    
     var body: some View {
         VStack(spacing: 0){
             headerImage
@@ -22,31 +25,51 @@ struct RestaurantCard: View {
             showDetails = true;
         }
         .fullScreenCover(isPresented: $showDetails){
-            RestaurantDetailView()
+            RestaurantDetailView(restaurant: restaurant, onSave: onSave)
         }
     }
     var headerImage: some View {
-        ZStack {
-            Image("Cover1")
-                .resizable()
-                .scaledToFill()
-            Text("An an Asean Bistro")
-                .foregroundColor(.white)
-                .fontWeight(.bold)
-                .font(.title3)
-                .offset(x: -45, y: 50)
-            Image(systemName: "mappin")
-                .foregroundColor(.white)
-                .offset(x: -130, y: 75)
-                .font(.subheadline)
-            Text("Geodetów 5, Mysiadło")
-                .foregroundColor(.white)
-                .font(.subheadline)
-                .offset(x: -45, y: 75)
-                
+        Group {
+            if let imageData = restaurant.imageData,
+               let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.gray
+            }
         }
         .frame(height: 200)
-        .clipShape(Rectangle())
+        .clipped()
+        
+        .overlay(alignment: .bottomLeading) {
+            
+            ZStack(alignment: .bottomLeading) {
+                
+                LinearGradient(
+                    gradient: Gradient(colors: [.clear, .black.opacity(0.7)]),
+                    startPoint: .center,
+                    endPoint: .bottom
+                )
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(restaurant.name)
+                        .foregroundColor(.white)
+                        .fontWeight(.bold)
+                        .font(.title3)
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "mappin")
+                            .font(.subheadline)
+                        
+                        Text(restaurant.address)
+                            .font(.subheadline)
+                    }
+                    .foregroundColor(.white)
+                }
+                .padding()
+            }
+        }
         .padding(.bottom, 10)
     }
     var ratingSection: some View {
@@ -55,14 +78,14 @@ struct RestaurantCard: View {
                 Image(systemName: "star.fill")
                     .font(.title3)
                     .foregroundColor(.yellow)
-                Text("8.3")
+                Text("\(restaurant.rating, specifier: "%.1f")")
                     .font(.title2)
                     .bold()
                 Text("/10")
                     .font(.footnote)
                     .foregroundColor(.gray)
                 Spacer()
-                Text("Cantonese")
+                Text(restaurant.cuisine)
                     .bold()
                     .font(.footnote)
                     .foregroundColor(.red)
@@ -77,41 +100,43 @@ struct RestaurantCard: View {
                     
             }
             .padding(.horizontal, 5)
-            ratingRow
-            ratingRow
-                .padding(.bottom, 10)
-            Text("Kurczak z miode to jest taki benger ze nawet sobi tego nie wyobrazasz bratku.")
-                .font(.subheadline)
+            ratingRow(label1: "Food", score1: restaurant.foodScore,
+                          label2: "Service", score2: restaurant.serviceScore)
                 
+                ratingRow(label1: "Ambiance", score1: restaurant.ambianceScore,
+                          label2: "Value", score2: restaurant.valueScore)
+                .padding(.bottom, 10)
+            Text("\"\(restaurant.notes)\"")
+                .font(.subheadline.italic())
+                .foregroundColor(.gray)
         }
         .padding(5)
     }
     
-    var ratingRow: some View {
-        HStack{
-            HStack{
-                Text("Food")
+    func ratingRow(label1: String, score1: Double, label2: String, score2: Double) -> some View {
+        HStack {
+            HStack {
+                Text(label1)
                     .font(.subheadline)
                     .foregroundColor(.gray)
                 Spacer()
-                Text("9")
+                Text("\(Int(score1))")
                     .font(.subheadline)
                     .bold()
-
             }
             .padding(.horizontal, 10)
             .padding(5)
             .background(.gray.opacity(0.2))
             .cornerRadius(10)
-            HStack{
-                Text("Food")
+            
+            HStack {
+                Text(label2)
                     .font(.subheadline)
                     .foregroundColor(.gray)
                 Spacer()
-                Text("9")
+                Text("\(Int(score2))")
                     .font(.subheadline)
                     .bold()
-
             }
             .padding(.horizontal, 10)
             .padding(5)
@@ -122,6 +147,28 @@ struct RestaurantCard: View {
     }
 }
 
+extension Restaurant {
+    static var preview: Restaurant {
+        Restaurant(
+            name: "Golden Dragon",
+            address: "128 Main Street",
+            cuisine: "Cantonese",
+            imageData: UIImage(named: "Cover1")?.jpegData(compressionQuality: 0.8),
+            foodScore: 8.3,
+            serviceScore: 9,
+            ambianceScore: 8,
+            valueScore: 7,
+            favoriteDishes: ["kurczak", "krewetki"],
+            notes: "Kurczak z miode to jest taki benger ze nawet sobi tego nie wyobrazasz bratku."
+        )
+    }
+}
+
+// Użycie:
 #Preview {
-    ContentView()
+    RestaurantCard(restaurant: .preview) { updatedRestaurant in
+        // To jest tylko dla podglądu, więc nic nie robimy
+        print("Preview saved: \(updatedRestaurant.name)")
+    }
+    .environmentObject(RestaurantManager())
 }

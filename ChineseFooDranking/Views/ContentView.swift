@@ -8,14 +8,20 @@
 import SwiftUI
 
 struct ContentView: View {
+    @EnvironmentObject var restaurantManager: RestaurantManager
+    @State private var selectedRestaurant: Restaurant?
     @State private var addButtonClicked = false
+    
     var body: some View {
         ZStack {
             ScrollView {
                 VStack {
                     Text("Witaj w aplikacji!")
-                    RestaurantCard()
-                        .padding(20)
+                    ForEach(restaurantManager.restaurants) { restaurant in
+                        RestaurantCard(restaurant: restaurant) {updatedRestaurant in restaurantManager.updateRestaurant(updatedRestaurant)
+                        }
+                            .padding(.horizontal, 20)
+                    }
                 }
             }
 
@@ -63,4 +69,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
+        .environmentObject(RestaurantManager())
 }

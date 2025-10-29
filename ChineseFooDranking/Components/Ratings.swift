@@ -8,11 +8,11 @@ import SwiftUI
 
 
 struct Ratings: View {
-    let isEditable: Bool  // rodzic kontroluje edycję
-    @State private var foodScore = 9.0
-    @State private var serviceScore = 8.0
-    @State private var ambianceScore = 9.0
-    @State private var valueScore = 7.0
+    let isEditable: Bool
+    @Binding var foodScore: Double
+    @Binding var serviceScore: Double
+    @Binding var ambianceScore: Double
+    @Binding var valueScore: Double
     
     //RATING BREAKDOWN
     var body: some View {
@@ -79,5 +79,16 @@ struct RatingRow: View{
 
 
 #Preview {
-    Ratings(isEditable: true)
+    @Previewable @State var food = 5.0
+    @Previewable @State var service = 5.0
+    @Previewable @State var ambiance = 5.0
+    @Previewable @State var value = 10.0
+    
+    Ratings(
+        isEditable: true,
+        foodScore: $food,
+        serviceScore: $service,
+        ambianceScore: $ambiance,
+        valueScore: $value
+    )
 }

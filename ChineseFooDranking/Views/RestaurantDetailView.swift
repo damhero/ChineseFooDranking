@@ -8,17 +8,53 @@
 import SwiftUI
 
 struct RestaurantDetailView: View {
-    @State var dishes: [String] = ["Kuciak w miodem", "krewetki"]
+    let restaurant: Restaurant
+    var onSave: (Restaurant) -> Void
+    
     @Environment(\.dismiss) var dismiss
+    @State private var isEditing = false
+    @State private var foodScore: Double
+    @State private var serviceScore: Double
+    @State private var ambianceScore: Double
+    @State private var valueScore: Double
+    
+    init(restaurant: Restaurant, onSave: @escaping (Restaurant) -> Void) {
+        self.restaurant = restaurant
+        self.onSave = onSave
+        _foodScore = State(initialValue: restaurant.foodScore)
+        _serviceScore = State(initialValue: restaurant.serviceScore)
+        _ambianceScore = State(initialValue: restaurant.ambianceScore)
+        _valueScore = State(initialValue: restaurant.valueScore)
+        }
     var body: some View {
         ScrollView{
             VStack{
                 HStack{
-                    Text("An an Asean Bistro")
+                    Text(restaurant.name)
                         .foregroundColor(.black)
                         .fontWeight(.bold)
                         .font(.title2)
                     Spacer()
+                    Button {
+                        withAnimation {
+                            isEditing.toggle()
+                            
+                            if !isEditing {
+                                var updatedRestaurant = restaurant
+                                updatedRestaurant.foodScore = foodScore
+                                updatedRestaurant.serviceScore = serviceScore
+                                updatedRestaurant.ambianceScore = ambianceScore
+                                updatedRestaurant.valueScore = valueScore
+                                
+                                onSave(updatedRestaurant)
+                            }
+                        }
+                    } label: {
+                        Image(systemName: isEditing ? "checkmark.circle.fill" : "pencil")
+                            .foregroundColor(.black)
+                            .font(.headline)
+                            .padding(10)
+                    }
                     Button {
                         dismiss()
                     } label: {
@@ -35,7 +71,7 @@ struct RestaurantDetailView: View {
                 VStack(spacing: 0){
                     
                     ratingSection
-                    FavoriteDishes(mode: .viewing, dishes: $dishes)
+                    FavoriteDishes(mode: .viewing, dishes: .constant(restaurant.favoriteDishes))
                     personalNotes
 
                     
@@ -95,7 +131,13 @@ struct RestaurantDetailView: View {
                 Spacer()
             }
                 .padding(.bottom, 10)
-            Ratings(isEditable: false)
+            Ratings(
+                    isEditable: isEditing,
+                    foodScore: $foodScore,
+                    serviceScore: $serviceScore,
+                    ambianceScore: $ambianceScore,
+                    valueScore: $valueScore
+                    )
                 
         }
     }
@@ -111,7 +153,7 @@ struct RestaurantDetailView: View {
                 Spacer()
             }
 
-            Text("Kurczak z miode to jest taki benger ze nawet sobi tego nie wyobrazasz bratku. Pani tylko ma czasem problem ze zrozumieniem wiec upewnij sie ze wie o co ja prosisz.")
+            Text(restaurant.notes)
                 .font(.subheadline)
         }
     }
@@ -122,5 +164,14 @@ struct RestaurantDetailView: View {
 
 
 #Preview {
-    RestaurantDetailView()
+    // 1. Używamy restauracji .preview, którą zdefiniowałeś wcześniej
+    //    (Zakładam, że jest ona dostępna jako 'Restaurant.preview')
+    
+    RestaurantDetailView(restaurant: .preview) { updatedRestaurant in
+        
+        // 2. To jest brakujący blok 'onSave'.
+        //    W podglądzie nie musimy nic robić, możemy po prostu
+        //    wydrukować wiadomość do konsoli, aby sprawdzić, czy działa.
+        print("Preview: Przycisk zapisu naciśnięty dla \(updatedRestaurant.name)")
+    }
 }

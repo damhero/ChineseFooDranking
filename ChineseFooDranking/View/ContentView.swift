@@ -16,11 +16,21 @@ struct ContentView: View {
         ZStack {
             ScrollView {
                 VStack {
-                    Text("Witaj w aplikacji!")
+                    AppHeader()
+                    Champions(
+                        topRestaurants: restaurantManager.top3Champions,
+                    )
+                    HStack {
+                        Text("Wszystkie Restauracje")
+                            .font(.title2).fontWeight(.bold)
+                        Spacer()
+                    }
+                    .padding(.horizontal, 20)
                     ForEach(restaurantManager.restaurants) { restaurant in
-                        RestaurantCard(restaurant: restaurant) {updatedRestaurant in restaurantManager.updateRestaurant(updatedRestaurant)
+                        RestaurantCard(restaurant: restaurant) { updatedRestaurant in
+                            restaurantManager.updateRestaurant(updatedRestaurant)
                         }
-                            .padding(.horizontal, 20)
+                        .padding(.horizontal, 20)
                     }
                 }
             }
@@ -63,6 +73,7 @@ struct ContentView: View {
         )
         .fullScreenCover(isPresented: $addButtonClicked){
             AddRestaurantView()
+                .environmentObject(restaurantManager)
         }
     }
 }

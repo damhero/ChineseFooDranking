@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import PhotosUI
 
 struct RestaurantDetailView: View {
     let restaurant: Restaurant
@@ -17,6 +18,13 @@ struct RestaurantDetailView: View {
     @State private var serviceScore: Double
     @State private var ambianceScore: Double
     @State private var valueScore: Double
+    @State private var editableDishes: [String]
+    @State private var editableNotes: String
+    @State private var editableName: String
+    @State private var editableAddress: String
+    @State private var editableImageData: Data?
+    @State private var showPhotoPicker = false
+    @State private var selectedPhoto: PhotosPickerItem?
     
     init(restaurant: Restaurant, onSave: @escaping (Restaurant) -> Void) {
         self.restaurant = restaurant
@@ -25,15 +33,26 @@ struct RestaurantDetailView: View {
         _serviceScore = State(initialValue: restaurant.serviceScore)
         _ambianceScore = State(initialValue: restaurant.ambianceScore)
         _valueScore = State(initialValue: restaurant.valueScore)
-        }
+        _editableDishes = State(initialValue: restaurant.favoriteDishes)
+        _editableNotes = State(initialValue: restaurant.notes)
+        _editableName = State(initialValue: restaurant.name)
+        _editableAddress = State(initialValue: restaurant.address)
+        _editableImageData = State(initialValue: restaurant.imageData)
+        
+    }
+    
     var body: some View {
         ScrollView{
             VStack{
                 HStack{
-                    Text(restaurant.name)
-                        .foregroundColor(.black)
-                        .fontWeight(.bold)
-                        .font(.title2)
+                    if isEditing {
+                        TextField("Nazwa restauracji", text: $editableName)
+                    }else{
+                        Text(restaurant.name)
+                            .foregroundColor(.black)
+                            .fontWeight(.bold)
+                            .font(.title2)
+                    }
                     Spacer()
                     Button {
                         withAnimation {
@@ -45,6 +64,11 @@ struct RestaurantDetailView: View {
                                 updatedRestaurant.serviceScore = serviceScore
                                 updatedRestaurant.ambianceScore = ambianceScore
                                 updatedRestaurant.valueScore = valueScore
+                                updatedRestaurant.favoriteDishes = editableDishes
+                                updatedRestaurant.notes = editableNotes
+                                updatedRestaurant.name = editableName
+                                updatedRestaurant.address = editableAddress
+                                updatedRestaurant.imageData = editableImageData
                                 
                                 onSave(updatedRestaurant)
                             }
@@ -71,7 +95,8 @@ struct RestaurantDetailView: View {
                 VStack(spacing: 0){
                     
                     ratingSection
-                    FavoriteDishes(mode: .viewing, dishes: .constant(restaurant.favoriteDishes))
+                    FavoriteDishes(mode: isEditing ? .editing : .viewing,
+                                   dishes: $editableDishes)
                     personalNotes
 
                     
@@ -84,15 +109,46 @@ struct RestaurantDetailView: View {
         
     }
     var headerImage: some View {
-        ZStack {
-            Image("Cover1")
-                .resizable()
-                .scaledToFill()
-                
+        ZStack(alignment: .topTrailing) {
+            // Zdjęcie
+            if let imageData = editableImageData ?? restaurant.imageData,
+               let uiImage = UIImage(data: imageData) {
+                Image(uiImage: uiImage)
+                    .resizable()
+                    .scaledToFill()
+            } else {
+                Color.gray.opacity(0.3)
+            }
+            
+            // Przycisk edycji - tylko w trybie edycji
+            if isEditing {
+                Button {
+                    showPhotoPicker = true  // ← Pokaż picker jako sheet
+                } label: {
+                    Image(systemName: "camera.fill")
+                        .foregroundColor(.white)
+                        .padding(10)
+                        .background(Color.black.opacity(0.6))
+                        .clipShape(Circle())
+                }
+                .padding(10)
+                .padding(.top, 30)
+            }
         }
         .frame(height: 200)
         .clipShape(Rectangle())
-        .padding(.bottom, 10)
+        .photosPicker(
+            isPresented: $showPhotoPicker,
+            selection: $selectedPhoto
+        )
+        .onChange(of: selectedPhoto) { _, newValue in
+            // Konwertuj PhotosPickerItem na Data
+            Task {
+                if let data = try? await newValue?.loadTransferable(type: Data.self) {
+                    editableImageData = data
+                }
+            }
+        }
     }
     var ratingSection: some View {
         VStack(spacing: 10){
@@ -100,14 +156,14 @@ struct RestaurantDetailView: View {
                 Image(systemName: "star.fill")
                     .font(.title3)
                     .foregroundColor(.yellow)
-                Text("8.3")
+                Text("\(restaurant.rating, specifier: "%.1f")")
                     .font(.title2)
                     .bold()
                 Text("/10")
                     .font(.footnote)
                     .foregroundColor(.gray)
                 Spacer()
-                Text("Cantonese")
+                Text(restaurant.cuisine)
                     .bold()
                     .font(.footnote)
                     .foregroundColor(.red)
@@ -125,9 +181,14 @@ struct RestaurantDetailView: View {
                 Image(systemName: "mappin")
                     .foregroundColor(.black)
                     .font(.subheadline)
-                Text("Geodetów 5, Mysiadło")
-                    .foregroundColor(.black)
-                    .font(.subheadline)
+                if isEditing {
+                    TextField("Adres", text: $editableAddress)
+                }else{
+                    Text(restaurant.address)
+                        .foregroundColor(.black)
+                        .font(.subheadline)
+                }
+
                 Spacer()
             }
                 .padding(.bottom, 10)
@@ -152,9 +213,20 @@ struct RestaurantDetailView: View {
                     .padding(.bottom, 3)
                 Spacer()
             }
+            
+            if isEditing {
+                TextEditor(text: $editableNotes)
+                    .frame(minHeight: 100)
+                    .padding(8)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(Color.gray, lineWidth: 1)
+                    )
+            }else{
+                Text(restaurant.notes)
+                    .font(.subheadline)
+            }
 
-            Text(restaurant.notes)
-                .font(.subheadline)
         }
     }
 
@@ -164,14 +236,7 @@ struct RestaurantDetailView: View {
 
 
 #Preview {
-    // 1. Używamy restauracji .preview, którą zdefiniowałeś wcześniej
-    //    (Zakładam, że jest ona dostępna jako 'Restaurant.preview')
-    
     RestaurantDetailView(restaurant: .preview) { updatedRestaurant in
         
-        // 2. To jest brakujący blok 'onSave'.
-        //    W podglądzie nie musimy nic robić, możemy po prostu
-        //    wydrukować wiadomość do konsoli, aby sprawdzić, czy działa.
-        print("Preview: Przycisk zapisu naciśnięty dla \(updatedRestaurant.name)")
     }
 }

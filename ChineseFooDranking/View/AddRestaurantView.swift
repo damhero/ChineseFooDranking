@@ -13,7 +13,7 @@ struct AddRestaurantView: View {
     @State private var name: String = ""
     @State private var address: String = ""
     @State private var cuisine: String = ""
-    @State var favoriteDishes: [String] = ["Kuciak w miodem", "krewetki"]
+    @State var favoriteDishes: [String] = []
     @State private var notes: String = ""
     @State private var selectedImageData: Data?
     @State private var foodScore: Double = 5.0
@@ -22,7 +22,7 @@ struct AddRestaurantView: View {
     @State private var valueScore: Double = 5.0
 
     
-    let cuisineTypes = ["Chinese", "Vietnam", "Italian", "American", "Japanese"]
+    let cuisineTypes = ["Chińska", "Wietnamska", "Fusion", "Indyjska", "Tajska"]
 
     var body: some View {
         ScrollView{

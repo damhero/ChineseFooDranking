@@ -8,8 +8,9 @@
 import SwiftUI
 
 struct AddRestaurantView: View {
-    @EnvironmentObject var restaurantManager: RestaurantManager
     @Environment(\.dismiss) var dismiss
+    @EnvironmentObject var viewModel: ViewModel
+
     @State private var name: String = ""
     @State private var address: String = ""
     @State private var cuisine: String = ""
@@ -21,7 +22,6 @@ struct AddRestaurantView: View {
     @State private var ambianceScore: Double = 5.0
     @State private var valueScore: Double = 5.0
 
-    
     let cuisineTypes = ["Chińska", "Wietnamska", "Fusion", "Indyjska", "Tajska"]
 
     var body: some View {
@@ -82,20 +82,21 @@ struct AddRestaurantView: View {
                             .stroke(Color.gray, lineWidth: 1)
                     )
                     Button{
-                        let newRestaurant = Restaurant(
-                            name: name,
-                            address: address,
-                            cuisine: cuisine,
-                            imageData: selectedImageData,
-                            foodScore: foodScore,
-                            serviceScore: serviceScore,
-                            ambianceScore: ambianceScore,
-                            valueScore: valueScore,
-                            favoriteDishes: favoriteDishes,
-                            notes: notes
-                        )
-                        restaurantManager.addRestaurant(newRestaurant)
-                        dismiss()
+                        Task {
+                            await viewModel.createRestaurant(
+                                name: name,
+                                address: address,
+                                cuisine: cuisine,
+                                notes: notes,
+                                food: foodScore,
+                                service: serviceScore,
+                                ambiance: ambianceScore,
+                                value: valueScore,
+                                favoriteDishes: favoriteDishes,
+                                imageData: selectedImageData
+                            )
+                            dismiss()
+                        }
                     }label: {
                         Text("Dodaj Restaurację")
                             .foregroundColor(Color.white)
@@ -116,9 +117,7 @@ struct AddRestaurantView: View {
     }
 }
 
-
-
-
 #Preview {
     AddRestaurantView()
+        .environmentObject(ViewModel())
 }

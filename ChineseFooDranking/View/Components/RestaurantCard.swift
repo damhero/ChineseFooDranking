@@ -8,8 +8,8 @@
 import SwiftUI
 
 struct RestaurantCard: View {
-    @State private var showDetails = false
     let restaurant: Restaurant
+    let viewModel: ViewModel
     var onSave: (Restaurant) -> Void
     var medal : MedalType? = nil
     
@@ -22,55 +22,53 @@ struct RestaurantCard: View {
         .background(.white)
         .cornerRadius(10)
         
-        .onTapGesture {
-            showDetails = true;
-        }
-        .fullScreenCover(isPresented: $showDetails){
-            RestaurantDetailView(restaurant: restaurant, onSave: onSave)
-        }
     }
     
     var headerImage: some View {
-        Group {
-            if let imageData = restaurant.imageData,
-               let uiImage = UIImage(data: imageData) {
-                Image(uiImage: uiImage)
+        // AsyncImage automatycznie pobierze obrazek z URL-a
+        AsyncImage(url: restaurant.imageURL) { phase in
+            switch phase {
+            case .empty:
+                // Placeholder, gdy obrazek się ładuje
+                ZStack {
+                    Color.gray.opacity(0.1)
+                    ProgressView()
+                }
+            case .success(let image):
+                // Obrazek załadowany pomyślnie
+                image
                     .resizable()
                     .scaledToFill()
-            } else {
-                Color.gray
+            case .failure:
+                // Błąd lub brak obrazka (placeholder ze zdjęcia)
+                ZStack {
+                    Color.gray.opacity(0.1)
+                    Image(systemName: "photo.artframe")
+                        .font(.largeTitle)
+                        .foregroundColor(.gray.opacity(0.6))
+                }
+            @unknown default:
+                EmptyView()
             }
         }
-        .frame(height: 200)
+        .frame(height: 200) // Ustawiamy wysokość dla AsyncImage
         .clipped()
-        
-        .overlay(alignment: .topLeading) {
-            if let medal = medal {
-                Image(systemName: "medal.fill")
-                    .font(.title)
-                    .foregroundColor(medal.color)
-                    .padding(8)
-                    .shadow(radius: 5)
-            }
-            
+        .overlay(alignment: .bottomLeading) {
+            // Ta część (gradient i tekst) pozostaje bez zmian
             ZStack(alignment: .bottomLeading) {
-                
                 LinearGradient(
                     gradient: Gradient(colors: [.clear, .black.opacity(0.7)]),
                     startPoint: .center,
                     endPoint: .bottom
                 )
-                
                 VStack(alignment: .leading, spacing: 4) {
                     Text(restaurant.name)
                         .foregroundColor(.white)
                         .fontWeight(.bold)
                         .font(.title3)
-                    
                     HStack(spacing: 4) {
                         Image(systemName: "mappin")
                             .font(.subheadline)
-                        
                         Text(restaurant.address)
                             .font(.subheadline)
                     }
@@ -87,7 +85,7 @@ struct RestaurantCard: View {
                 Image(systemName: "star.fill")
                     .font(.title3)
                     .foregroundColor(.yellow)
-                Text("\(restaurant.rating, specifier: "%.1f")")
+                Text("\(restaurant.rating ?? 0.0, specifier: "%.1f")")
                     .font(.title2)
                     .bold()
                 Text("/10")
@@ -164,7 +162,6 @@ extension Restaurant {
             name: "Golden Dragon",
             address: "128 Main Street",
             cuisine: "Fusion",
-            imageData: UIImage(named: "Cover1")?.jpegData(compressionQuality: 0.8),
             foodScore: 8.3,
             serviceScore: 9,
             ambianceScore: 8,
@@ -177,9 +174,8 @@ extension Restaurant {
 
 // Użycie:
 #Preview {
-    RestaurantCard(restaurant: .preview) { updatedRestaurant in
-        // To jest tylko dla podglądu, więc nic nie robimy
+    RestaurantCard(restaurant: .preview, viewModel: ViewModel()) { updatedRestaurant in
         print("Preview saved: \(updatedRestaurant.name)")
     }
-    .environmentObject(RestaurantManager())
 }
+

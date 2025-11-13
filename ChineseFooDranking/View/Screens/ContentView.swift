@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject var restaurantManager: RestaurantManager
+    @StateObject private var viewModel = ViewModel()
     @State private var selectedRestaurant: Restaurant?
     @State private var addButtonClicked = false
     
@@ -18,7 +18,14 @@ struct ContentView: View {
                 VStack {
                     AppHeader()
                     Champions(
-                        topRestaurants: restaurantManager.top3Champions,
+                        topRestaurants: Array(viewModel.restaurants.prefix(3)),
+                        viewModel: viewModel,
+                        onSave: { updatedRestaurant in
+                            Task {
+                                await viewModel.updateRestaurant(updatedRestaurant)
+                            }
+                        },
+                        selectedRestaurant: $selectedRestaurant
                     )
                     HStack {
                         Text("Wszystkie Restauracje")
@@ -26,13 +33,30 @@ struct ContentView: View {
                         Spacer()
                     }
                     .padding(.horizontal, 20)
-                    ForEach(restaurantManager.restaurants) { restaurant in
-                        RestaurantCard(restaurant: restaurant) { updatedRestaurant in
-                            restaurantManager.updateRestaurant(updatedRestaurant)
+                    ForEach(viewModel.restaurants) { restaurant in
+
+                        Button(action: {
+                            self.selectedRestaurant = restaurant // <-- Ustawia wybraną restaurację
+                        }) {
+                            RestaurantCard(
+                                restaurant: restaurant,
+                                viewModel: viewModel,
+                                onSave: { updatedRestaurant in
+                                    Task {
+                                        await viewModel.updateRestaurant(updatedRestaurant)
+                                    }
+                                }
+                            )
                         }
+                        .buttonStyle(.plain) // <-- Usuwa domyślny niebieski styl przycisku
                         .padding(.horizontal, 20)
                     }
+                    }
                 }
+                .onAppear {
+                    Task {
+                        await viewModel.fetchRestaurants()
+                    }
             }
 
             VStack {
@@ -56,6 +80,25 @@ struct ContentView: View {
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // W ContentView.swift
+        .fullScreenCover(item: $selectedRestaurant) { restaurantToDisplay in
+            // Ten widok pokaże się, gdy selectedRestaurant NIE jest nil
+
+            RestaurantDetailView(
+                restaurant: restaurantToDisplay,
+                selectedRestaurant: $selectedRestaurant,
+                onSave: { updatedRestaurant in
+                    Task {
+                        await viewModel.updateRestaurant(updatedRestaurant)
+                    }
+                }
+            )
+            .environmentObject(viewModel) // <-- Przekaż ViewModel tutaj
+        }
+        .background(
+            // ... (Twój kod tła)
+        )
+        // ...
         .background(
             ZStack {
                 LinearGradient(
@@ -73,12 +116,11 @@ struct ContentView: View {
         )
         .fullScreenCover(isPresented: $addButtonClicked){
             AddRestaurantView()
-                .environmentObject(restaurantManager)
+                .environmentObject(viewModel)
         }
     }
 }
 
 #Preview {
     ContentView()
-        .environmentObject(RestaurantManager())
 }

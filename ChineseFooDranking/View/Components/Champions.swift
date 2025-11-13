@@ -18,11 +18,12 @@ enum MedalType {
 }
 
 struct Champions: View {
-    @EnvironmentObject var restaurantManager: RestaurantManager
     let topRestaurants: [Restaurant]
-    
+    let viewModel: ViewModel
+    var onSave: (Restaurant) -> Void
+    @Binding var selectedRestaurant: Restaurant?
     var body: some View {
-        VStack(spacing: 0) {
+        VStack(spacing: 10) {
             HStack {
                 Image(systemName: "trophy.fill")
                     .foregroundColor(Color.orange)
@@ -44,14 +45,20 @@ struct Champions: View {
                         }
                     }()
                     
-                    RestaurantCard(
-                        restaurant: restaurant,
-                        onSave: { updated in
-                            restaurantManager.updateRestaurant(updated)
-                        },
-                        medal: medalType
-                    )
-                    .padding(.horizontal, 20)
+                    Button(action: {
+                            self.selectedRestaurant = restaurant
+                        }) {
+                            RestaurantCard(
+                                restaurant: restaurant,
+                                viewModel: viewModel, // Upewnij się, że ten parametr jest
+                                onSave: onSave,
+                                medal: medalType
+                            )
+                        }
+                        .buttonStyle(.plain) // Usuwa domyślny niebieski styl przycisku
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 40)
+                    }
                 }
             }
             .tabViewStyle(.page)
@@ -60,15 +67,16 @@ struct Champions: View {
                 UIPageControl.appearance().currentPageIndicatorTintColor = .red  // Aktywna kropka
                 UIPageControl.appearance().pageIndicatorTintColor = .gray.withAlphaComponent(0.3)  // Nieaktywne 
             }
-            .frame(height: 500)
-            .padding(.top, -100)
+            .frame(height: 450)
         }
     }
-}
 
 #Preview {
+
     Champions(
-        topRestaurants: [Restaurant.preview, Restaurant.preview, Restaurant.preview]
+        topRestaurants: [Restaurant.preview, Restaurant.preview],
+        viewModel: ViewModel(),
+        onSave: { _ in print("Preview Save") },
+        selectedRestaurant: .constant(nil) 
     )
-    .environmentObject(RestaurantManager())
 }

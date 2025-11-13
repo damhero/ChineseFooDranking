@@ -9,7 +9,6 @@ import SwiftUI
 
 @main
 struct ChineseFooDrankingApp: App {
-    @StateObject var restaurantManager = RestaurantManager()
     
     var body: some Scene {
         WindowGroup {

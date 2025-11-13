@@ -9,7 +9,9 @@ import SwiftUI
 import PhotosUI
 
 struct RestaurantDetailView: View {
+    @EnvironmentObject var viewModel: ViewModel
     let restaurant: Restaurant
+    @Binding var selectedRestaurant: Restaurant?
     var onSave: (Restaurant) -> Void
     
     @Environment(\.dismiss) var dismiss
@@ -25,9 +27,11 @@ struct RestaurantDetailView: View {
     @State private var editableImageData: Data?
     @State private var showPhotoPicker = false
     @State private var selectedPhoto: PhotosPickerItem?
+    @State private var showingDeleteAlert = false
     
-    init(restaurant: Restaurant, onSave: @escaping (Restaurant) -> Void) {
+    init(restaurant: Restaurant, selectedRestaurant: Binding<Restaurant?>, onSave: @escaping (Restaurant) -> Void) {
         self.restaurant = restaurant
+        self._selectedRestaurant = selectedRestaurant
         self.onSave = onSave
         _foodScore = State(initialValue: restaurant.foodScore)
         _serviceScore = State(initialValue: restaurant.serviceScore)
@@ -37,7 +41,7 @@ struct RestaurantDetailView: View {
         _editableNotes = State(initialValue: restaurant.notes)
         _editableName = State(initialValue: restaurant.name)
         _editableAddress = State(initialValue: restaurant.address)
-        _editableImageData = State(initialValue: restaurant.imageData)
+        _editableImageData = State(initialValue: nil)
         
     }
     
@@ -48,7 +52,7 @@ struct RestaurantDetailView: View {
                     if isEditing {
                         TextField("Nazwa restauracji", text: $editableName)
                     }else{
-                        Text(restaurant.name)
+                        Text(editableName)
                             .foregroundColor(.black)
                             .fontWeight(.bold)
                             .font(.title2)
@@ -59,6 +63,8 @@ struct RestaurantDetailView: View {
                             isEditing.toggle()
                             
                             if !isEditing {
+                                
+                                // 1. Stwórz zaktualizowany obiekt restauracji (z danymi tekstowymi)
                                 var updatedRestaurant = restaurant
                                 updatedRestaurant.foodScore = foodScore
                                 updatedRestaurant.serviceScore = serviceScore
@@ -68,9 +74,21 @@ struct RestaurantDetailView: View {
                                 updatedRestaurant.notes = editableNotes
                                 updatedRestaurant.name = editableName
                                 updatedRestaurant.address = editableAddress
-                                updatedRestaurant.imageData = editableImageData
                                 
+                                // 2. Wywołaj 'onSave', aby wysłać dane tekstowe (PUT JSON)
+                                //    To wywoła 'viewModel.updateRestaurant(...)'
                                 onSave(updatedRestaurant)
+                                
+                                // 3. Sprawdź, czy użytkownik wybrał NOWY obrazek
+                                if let newImageData = editableImageData, let id = restaurant.id {
+                                    // Jeśli tak, wywołaj *oddzielną* funkcję do wysłania obrazka (POST Multipart)
+                                    Task {
+                                        await viewModel.uploadImage(id: id, imageData: newImageData)
+                                    }
+                                }
+                                
+                                // 4. Zamknij widok (teraz przez binding)
+                                selectedRestaurant = nil
                             }
                         }
                     } label: {
@@ -80,16 +98,19 @@ struct RestaurantDetailView: View {
                             .padding(10)
                     }
                     Button {
-                        dismiss()
+                        selectedRestaurant = nil
                     } label: {
                         Image(systemName: "xmark")
                             .foregroundColor(.black)
                             .font(.headline)
                             .padding(10)
                     }
+                    
+
                 }
                 .padding(.horizontal, 20)
                 .padding(.vertical, 5)
+                .zIndex(1)
 
                 headerImage
                 VStack(spacing: 0){
@@ -98,32 +119,85 @@ struct RestaurantDetailView: View {
                     FavoriteDishes(mode: isEditing ? .editing : .viewing,
                                    dishes: $editableDishes)
                     personalNotes
+                    
+                    if isEditing {
+                        Button(role: .destructive) {
+                            showingDeleteAlert = true
+                        } label: {
+                            Label("Usuń Restaurację", systemImage: "trash.fill")
+                                .font(.headline)
+                                .foregroundColor(.red)
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(Color.red.opacity(0.1))
+                                .cornerRadius(10)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 10)
+                                        .stroke(Color.red, lineWidth: 1)
+                                )
+                        }
+                        .padding(.horizontal, 20)
+                        .padding(.top, 30) // Duży odstęp od reszty
+                    }
 
                     
                 }
                 .background(.white)
                 .cornerRadius(10)
                 .padding(.horizontal, 20)
+                
+                .alert("Na pewno usunąć?", isPresented: $showingDeleteAlert) {
+                    Button("Usuń", role: .destructive) {
+                        // To jest ostateczna akcja usuwania
+                        Task {
+                            // Wywołujemy funkcję usuwania z ViewModelu
+                            await viewModel.deleteRestaurant(restaurant)
+                            // Zamykamy widok
+                            selectedRestaurant = nil
+                        }
+                    }
+                    Button("Anuluj", role: .cancel) { }
+                } message: {
+                    Text("Tej akcji nie można cofnąć. Restauracja \"\(restaurant.name)\" zostanie usunięta.")
+                }
             }
         }
         
     }
     var headerImage: some View {
         ZStack(alignment: .topTrailing) {
-            // Zdjęcie
-            if let imageData = editableImageData ?? restaurant.imageData,
-               let uiImage = UIImage(data: imageData) {
+            
+            // 1. Sprawdź, czy mamy NOWY obrazek w pamięci
+            if let newImageData = editableImageData, let uiImage = UIImage(data: newImageData) {
+                
+                // Jeśli tak, pokaż ten nowy obrazek
                 Image(uiImage: uiImage)
                     .resizable()
                     .scaledToFill()
+            
             } else {
-                Color.gray.opacity(0.3)
+                
+                // 2. Jeśli nie, pobierz obrazek z serwera przez AsyncImage
+                AsyncImage(url: restaurant.imageURL) { phase in
+                    switch phase {
+                    case .success(let image):
+                        image.resizable().scaledToFill()
+                    case .failure:
+                        Image(systemName: "photo.artframe").font(.largeTitle).foregroundColor(.gray.opacity(0.6))
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.gray.opacity(0.1))
+                    default:
+                        ProgressView()
+                            .frame(maxWidth: .infinity, maxHeight: .infinity)
+                            .background(Color.gray.opacity(0.1))
+                    }
+                }
             }
             
-            // Przycisk edycji - tylko w trybie edycji
+            // Przycisk edycji (bez zmian)
             if isEditing {
                 Button {
-                    showPhotoPicker = true  // ← Pokaż picker jako sheet
+                    showPhotoPicker = true
                 } label: {
                     Image(systemName: "camera.fill")
                         .foregroundColor(.white)
@@ -136,13 +210,13 @@ struct RestaurantDetailView: View {
             }
         }
         .frame(height: 200)
+        .frame(maxWidth: .infinity)
         .clipShape(Rectangle())
         .photosPicker(
             isPresented: $showPhotoPicker,
             selection: $selectedPhoto
         )
         .onChange(of: selectedPhoto) { _, newValue in
-            // Konwertuj PhotosPickerItem na Data
             Task {
                 if let data = try? await newValue?.loadTransferable(type: Data.self) {
                     editableImageData = data
@@ -156,7 +230,7 @@ struct RestaurantDetailView: View {
                 Image(systemName: "star.fill")
                     .font(.title3)
                     .foregroundColor(.yellow)
-                Text("\(restaurant.rating, specifier: "%.1f")")
+                Text("\(restaurant.rating ?? 0.0, specifier: "%.1f")")
                     .font(.title2)
                     .bold()
                 Text("/10")
@@ -184,7 +258,7 @@ struct RestaurantDetailView: View {
                 if isEditing {
                     TextField("Adres", text: $editableAddress)
                 }else{
-                    Text(restaurant.address)
+                    Text(editableAddress)
                         .foregroundColor(.black)
                         .font(.subheadline)
                 }
@@ -223,7 +297,7 @@ struct RestaurantDetailView: View {
                             .stroke(Color.gray, lineWidth: 1)
                     )
             }else{
-                Text(restaurant.notes)
+                Text(editableNotes)
                     .font(.subheadline)
             }
 
@@ -236,7 +310,10 @@ struct RestaurantDetailView: View {
 
 
 #Preview {
-    RestaurantDetailView(restaurant: .preview) { updatedRestaurant in
-        
-    }
+    RestaurantDetailView(
+        restaurant: .preview,
+        selectedRestaurant: .constant(Restaurant.preview),
+        onSave: { _ in }
+    )
+    .environmentObject(ViewModel())
 }

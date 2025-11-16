@@ -77,6 +77,16 @@ struct RestaurantCard: View {
                 .padding()
             }
         }
+        .overlay(alignment: .topLeading) {
+                // Ta logika sprawdza, czy medal został przekazany
+                if let medal = medal {
+                    Image(systemName: "medal.fill")
+                        .font(.largeTitle) // Dopasuj rozmiar
+                        .foregroundColor(medal.color)
+                        .shadow(color: .black.opacity(0.4), radius: 3, x: 2, y: 2)
+                        .padding(8) // Mały odstęp od rogu
+                }
+            }
         .padding(.bottom, 10)
     }
     var ratingSection: some View {

@@ -12,13 +12,20 @@ struct ContentView: View {
     @State private var selectedRestaurant: Restaurant?
     @State private var addButtonClicked = false
     
+    private var sortedRestaurants: [Restaurant] {
+        viewModel.restaurants.sorted {
+            // Sortuj malejąco (od najwyższej oceny)
+            $0.rating ?? 0 > $1.rating ?? 0
+        }
+    }
+    
     var body: some View {
         ZStack {
             ScrollView {
                 VStack {
                     AppHeader()
                     Champions(
-                        topRestaurants: Array(viewModel.restaurants.prefix(3)),
+                        topRestaurants: Array(sortedRestaurants.prefix(3)),
                         viewModel: viewModel,
                         onSave: { updatedRestaurant in
                             Task {
@@ -33,7 +40,7 @@ struct ContentView: View {
                         Spacer()
                     }
                     .padding(.horizontal, 20)
-                    ForEach(viewModel.restaurants) { restaurant in
+                    ForEach(sortedRestaurants) { restaurant in
 
                         Button(action: {
                             self.selectedRestaurant = restaurant // <-- Ustawia wybraną restaurację

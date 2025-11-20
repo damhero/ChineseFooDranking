@@ -20,7 +20,7 @@ struct Restaurant: Identifiable, Sendable, Codable {
     var notes : String
     
     var rating: Double? {
-        (foodScore + serviceScore + ambianceScore + valueScore) / 4.0
+        (foodScore * 2.0 + serviceScore + ambianceScore + valueScore) / 5.0
     }
     
     var imageURL: URL? {
